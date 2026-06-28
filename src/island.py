@@ -383,39 +383,38 @@ class DynamicIsland(QWidget):
         self.settings_dialog.show()
         
     def apply_settings(self, settings):
-        """应用设置变更"""
-        # 更新本地配置 - 注意：self.island_config 引用的是 self.config['island'] 的字典对象
-        # 但在 settings_widget 的 on_save 中可能替换了整个字典，所以需要同步更新引用
-        self.island_config.update(settings)
-        self.config['island'] = self.island_config  # 确保 self.config 引用正确
+        """应用设置变更 - 直接替换整个配置字典，避免引用问题"""
+        # 完全替换配置字典
+        self.config['island'] = settings
+        self.island_config = settings
         
-        # 重新计算尺寸
+        # 重新计算所有尺寸
         self.collapsed_size = QSize(
-            settings.get('width_collapsed', self.collapsed_size.width()),
-            settings.get('height_collapsed', self.collapsed_size.height())
+            settings.get('width_collapsed', 170),
+            settings.get('height_collapsed', 36)
         )
         self.expanded_size = QSize(
-            settings.get('width_expanded', self.expanded_size.width()),
-            settings.get('height_expanded', self.expanded_size.height())
+            settings.get('width_expanded', 400),
+            settings.get('height_expanded', 75)
         )
         self.media_size = QSize(
-            settings.get('width_media', self.media_size.width()),
-            settings.get('height_media', self.media_size.height())
+            settings.get('width_media', 420),
+            settings.get('height_media', 115)
         )
         self.volume_size = QSize(
-            settings.get('width_volume', self.volume_size.width()),
-            settings.get('height_volume', self.volume_size.height())
+            settings.get('width_volume', 320),
+            settings.get('height_volume', 75)
         )
         self.notification_size = QSize(
-            settings.get('width_notification', self.notification_size.width()),
-            settings.get('height_notification', self.notification_size.height())
+            settings.get('width_notification', 400),
+            settings.get('height_notification', 100)
         )
         
-        # 更新动画和外观
-        self.animation_duration = settings.get('animation_duration', self.animation_duration)
-        self.auto_hide_delay = settings.get('auto_hide_delay', self.auto_hide_delay)
-        self.bg_opacity = settings.get('background_opacity', self.bg_opacity)
-        self.border_radius = settings.get('border_radius', self.border_radius)
+        # 更新动画和外观参数
+        self.animation_duration = settings.get('animation_duration', 200)
+        self.auto_hide_delay = settings.get('auto_hide_delay', 3500)
+        self.bg_opacity = settings.get('background_opacity', 210)
+        self.border_radius = settings.get('border_radius', 18)
         
         # 更新动画器
         self.animator.duration = self.animation_duration
@@ -425,20 +424,45 @@ class DynamicIsland(QWidget):
         # 更新定时器
         self.auto_hide_timer.setInterval(self.auto_hide_delay)
         
+        # 获取当前状态对应的目标尺寸
+        state_size_map = {
+            'collapsed': self.collapsed_size,
+            'expanded': self.expanded_size,
+            'media': self.media_size,
+            'volume': self.volume_size,
+            'notification': self.notification_size,
+        }
+        target_size = state_size_map.get(self.current_state, self.collapsed_size)
+        
+        # 强制调整大小：先取消固定大小限制，再设置几何，再恢复固定大小
+        self.setMinimumSize(0, 0)
+        self.setMaximumSize(16777215, 16777215)
+        
+        # 计算居中位置
+        screen = QApplication.primaryScreen().geometry()
+        x = (screen.width() - target_size.width()) // 2
+        y = max(8, self.pos().y())
+        
+        # 使用 setGeometry 同时设置位置和大小
+        self.setGeometry(x, y, target_size.width(), target_size.height())
+        
+        # 重新设置固定大小
+        self.setFixedSize(target_size)
+        
         # 重绘
         self.update()
         
-        # 如果当前处于收缩状态，直接调整大小
-        if self.current_state == 'collapsed':
-            self.setFixedSize(self.collapsed_size)
-        elif self.current_state == 'expanded':
-            self.setFixedSize(self.expanded_size)
-        elif self.current_state == 'media':
-            self.setFixedSize(self.media_size)
-        elif self.current_state == 'volume':
-            self.setFixedSize(self.volume_size)
-        elif self.current_state == 'notification':
-            self.setFixedSize(self.notification_size)
+        # 保存新配置到文件（确保重启后生效）
+        try:
+            import json
+            config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.json')
+            with open(config_path, 'w', encoding='utf-8') as f:
+                json.dump(self.config, f, indent=2, ensure_ascii=False)
+        except Exception as e:
+            print(f'配置保存失败: {e}')
+        
+        # 发送反馈通知
+        self.show_notification('设置已保存', '灵动岛尺寸和样式已更新', '✅', 2000)
             
     # === 系统事件回调 ===
                 
