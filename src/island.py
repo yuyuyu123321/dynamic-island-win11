@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QSlider, QGraphicsDropShadowEffect, QSystemTrayIcon, QMenu
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPropertyAnimation, QEasingCurve, QRect, QSize, QPoint
-from PyQt6.QtGui import QColor, QPainter, QBrush, QFont, QPixmap, QIcon, QAction
+from PyQt6.QtGui import QColor, QIcon, QAction
 
 from animations import IslandAnimator
 from widgets.media_widget import MediaWidget
@@ -400,14 +400,6 @@ class DynamicIsland(QWidget):
             self.notification_widget.show_notification(title, message, icon)
             self.expand_to('notification', 'notification')
             
-    def paintEvent(self, event):
-        """绘制事件 - 确保背景透明"""
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        painter.setCompositionMode(QPainter.CompositionMode.CompositionMode_Clear)
-        painter.fillRect(self.rect(), Qt.GlobalColor.transparent)
-        painter.end()
-        
     def show_notification(self, title, message, icon=None, duration=3000):
         """显示通知"""
         self.on_system_notification(title, message, icon)
