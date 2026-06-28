@@ -18,6 +18,7 @@ from widgets.media_widget import MediaWidget
 from widgets.volume_widget import VolumeWidget
 from widgets.notification_widget import NotificationWidget
 from widgets.clock_widget import ClockWidget
+from widgets.settings_widget import SettingsDialog
 from utils.system_monitor import SystemMonitor
 
 
@@ -167,6 +168,10 @@ class DynamicIsland(QWidget):
         tray_menu.addAction(hide_action)
         
         tray_menu.addSeparator()
+        
+        settings_action = QAction('⚙ 设置', self)
+        settings_action.triggered.connect(self.open_settings)
+        tray_menu.addAction(settings_action)
         
         quit_action = QAction('退出', self)
         quit_action.triggered.connect(self.quit_app)
@@ -352,6 +357,73 @@ class DynamicIsland(QWidget):
         self.tray_icon.hide()
         QApplication.quit()
         
+    def open_settings(self):
+        """打开设置窗口"""
+        if hasattr(self, 'settings_dialog') and self.settings_dialog.isVisible():
+            self.settings_dialog.raise_()
+            self.settings_dialog.activateWindow()
+            return
+            
+        self.settings_dialog = SettingsDialog(self.config, self)
+        self.settings_dialog.settings_changed.connect(self.apply_settings)
+        self.settings_dialog.show()
+        
+    def apply_settings(self, settings):
+        """应用设置变更"""
+        # 更新本地配置
+        self.island_config.update(settings)
+        
+        # 重新计算尺寸
+        self.collapsed_size = QSize(
+            settings.get('width_collapsed', self.collapsed_size.width()),
+            settings.get('height_collapsed', self.collapsed_size.height())
+        )
+        self.expanded_size = QSize(
+            settings.get('width_expanded', self.expanded_size.width()),
+            settings.get('height_expanded', self.expanded_size.height())
+        )
+        self.media_size = QSize(
+            settings.get('width_media', self.media_size.width()),
+            settings.get('height_media', self.media_size.height())
+        )
+        self.volume_size = QSize(
+            settings.get('width_volume', self.volume_size.width()),
+            settings.get('height_volume', self.volume_size.height())
+        )
+        self.notification_size = QSize(
+            settings.get('width_notification', self.notification_size.width()),
+            settings.get('height_notification', self.notification_size.height())
+        )
+        
+        # 更新动画和外观
+        self.animation_duration = settings.get('animation_duration', self.animation_duration)
+        self.auto_hide_delay = settings.get('auto_hide_delay', self.auto_hide_delay)
+        self.bg_opacity = settings.get('background_opacity', self.bg_opacity)
+        self.border_radius = settings.get('border_radius', self.border_radius)
+        
+        # 更新动画器
+        self.animator.duration = self.animation_duration
+        self.animator.size_animation.setDuration(self.animation_duration)
+        self.animator.pos_animation.setDuration(self.animation_duration)
+        
+        # 更新定时器
+        self.auto_hide_timer.setInterval(self.auto_hide_delay)
+        
+        # 重绘
+        self.update()
+        
+        # 如果当前处于收缩状态，直接调整大小
+        if self.current_state == 'collapsed':
+            self.setFixedSize(self.collapsed_size)
+        elif self.current_state == 'expanded':
+            self.setFixedSize(self.expanded_size)
+        elif self.current_state == 'media':
+            self.setFixedSize(self.media_size)
+        elif self.current_state == 'volume':
+            self.setFixedSize(self.volume_size)
+        elif self.current_state == 'notification':
+            self.setFixedSize(self.notification_size)
+            
     # === 系统事件回调 ===
                 
     def on_media_play_pause(self):
