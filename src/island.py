@@ -140,7 +140,6 @@ class DynamicIsland(QWidget):
         # 媒体组件
         if self.features.get('media', True):
             self.media_widget = MediaWidget(self)
-            self.media_widget.media_changed.connect(self.on_media_changed)
             self.media_widget.play_pause_clicked.connect(self.on_media_play_pause)
             self.media_widget.next_clicked.connect(self.on_media_next)
             self.media_widget.prev_clicked.connect(self.on_media_prev)
@@ -362,13 +361,6 @@ class DynamicIsland(QWidget):
         QApplication.quit()
         
     # === 系统事件回调 ===
-    
-    def on_media_changed(self, info):
-        """媒体信息变化"""
-        if self.media_widget:
-            self.media_widget.update_media_info(info)
-            if info.get('is_playing', False):
-                self.expand_to('media', 'media')
                 
     def on_media_play_pause(self):
         """播放/暂停"""
