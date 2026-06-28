@@ -23,6 +23,7 @@ class SystemMonitor(QObject):
         self.last_volume = None
         self.last_media_info = None
         self.last_media_playing = False
+        self.media_missed_count = 0  # 连续未检测到媒体的次数
         
         # winsdk 是否可用
         self.winsdk_available = False
@@ -96,12 +97,17 @@ class SystemMonitor(QObject):
                 sessions = manager.get_sessions()
                 
                 if not sessions:
-                    # 没有媒体会话，如果之前有播放则暂停
-                    if self.last_media_playing:
+                    # 没有媒体会话，增加 miss 计数
+                    self.media_missed_count += 1
+                    # 连续 3 次未检测到才触发暂停（避免误报）
+                    if self.media_missed_count >= 3 and self.last_media_playing:
                         self.last_media_playing = False
                         self.last_media_info = None
                         self.media_paused.emit()
                     return
+                
+                # 检测到会话，重置 miss 计数
+                self.media_missed_count = 0
                 
                 # 获取第一个活跃会话
                 session = sessions[0]
@@ -119,7 +125,7 @@ class SystemMonitor(QObject):
                     playback_status = playback_info.playback_status
                     is_playing = playback_status == 4
                     
-                    # 构建媒体信息
+                    # 构建媒体信息（去掉 is_playing 用于比较，避免重复发送）
                     info = {
                         'title': title,
                         'artist': artist,
@@ -127,14 +133,21 @@ class SystemMonitor(QObject):
                         'is_playing': is_playing
                     }
                     
-                    # 检测状态变化
-                    if is_playing and (self.last_media_info != info or not self.last_media_playing):
+                    # 检测状态变化：只有真正变化才发送信号
+                    info_compare = {k: v for k, v in info.items() if k != 'is_playing'}
+                    last_compare = {k: v for k, v in self.last_media_info.items() if k != 'is_playing'} if self.last_media_info else None
+                    
+                    if is_playing and (info_compare != last_compare or not self.last_media_playing):
                         self.last_media_info = info
                         self.last_media_playing = True
                         self.media_playing.emit(info)
                     elif not is_playing and self.last_media_playing:
                         self.last_media_playing = False
                         self.media_paused.emit()
+                    elif not is_playing and not self.last_media_playing:
+                        # 已经暂停了，不重复发送
+                        pass
+                    # 如果正在播放但信息相同，也不重复发送（last_media_playing 已为 True）
                         
                 except Exception:
                     pass

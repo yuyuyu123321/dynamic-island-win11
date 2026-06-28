@@ -259,8 +259,10 @@ class SettingsDialog(QDialog):
         # 更新配置
         self.config['island'] = settings
         
-        # 保存到文件
-        config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.json')
+        # 保存到文件 - 项目根目录的 config.json
+        # settings_widget.py 在 src/widgets/，需要回到根目录
+        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
+        config_path = os.path.join(root_dir, 'config.json')
         try:
             with open(config_path, 'w', encoding='utf-8') as f:
                 json.dump(self.config, f, indent=2, ensure_ascii=False)

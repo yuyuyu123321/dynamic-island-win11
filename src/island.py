@@ -39,8 +39,9 @@ class DynamicIsland(QWidget):
         self.previous_state = 'collapsed'
         self.is_dragging = False
         self.drag_position = QPoint()
+        self.is_media_playing = False  # 媒体是否正在播放
         self.auto_hide_timer = QTimer()
-        self.auto_hide_timer.timeout.connect(self.collapse)
+        self.auto_hide_timer.timeout.connect(self._on_auto_hide_timeout)
         self.auto_hide_timer.setSingleShot(True)
         
         # 尺寸配置
@@ -261,9 +262,21 @@ class DynamicIsland(QWidget):
         self.state_changed.emit(state)
         
         # 设置自动隐藏定时器
-        if state != 'collapsed':
+        if state != 'collapsed' and state != 'media':
             self.auto_hide_timer.start(self.auto_hide_delay)
+        elif state == 'media':
+            # 媒体播放时重置 auto_hide，但使用更长的延迟
+            self.auto_hide_timer.start(self.auto_hide_delay * 2)
             
+    def _on_auto_hide_timeout(self):
+        """自动隐藏定时器到期"""
+        # 如果媒体正在播放，不要收缩，而是保持 media 状态
+        if self.is_media_playing:
+            # 媒体仍在播放，重新展开到 media（重置定时器）
+            self.expand_to('media', 'media')
+        else:
+            self.collapse()
+
     def collapse(self):
         """收缩回默认状态"""
         self.expand_to('collapsed', 'clock')
@@ -450,12 +463,14 @@ class DynamicIsland(QWidget):
             
     def on_system_media_playing(self, info):
         """系统媒体播放"""
+        self.is_media_playing = True
         if self.media_widget:
             self.media_widget.update_media_info(info)
             self.expand_to('media', 'media')
             
     def on_system_media_paused(self):
         """系统媒体暂停"""
+        self.is_media_playing = False
         self.collapse()
         
     def on_system_notification(self, title, message, icon=None):
