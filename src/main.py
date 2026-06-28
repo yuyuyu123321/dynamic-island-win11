@@ -27,11 +27,15 @@ def load_config():
 
 def main():
     """主函数"""
-    # 启用高 DPI 支持
-    if hasattr(Qt, 'AA_EnableHighDpiScaling'):
+    # 启用高 DPI 支持（PyQt6 中部分属性已废弃，使用 try/except）
+    try:
         QApplication.setAttribute(Qt.ApplicationAttribute.AA_EnableHighDpiScaling, True)
-    if hasattr(Qt, 'AA_UseHighDpiPixmaps'):
+    except (AttributeError, TypeError):
+        pass
+    try:
         QApplication.setAttribute(Qt.ApplicationAttribute.AA_UseHighDpiPixmaps, True)
+    except (AttributeError, TypeError):
+        pass
 
     app = QApplication(sys.argv)
     app.setQuitOnLastWindowClosed(False)

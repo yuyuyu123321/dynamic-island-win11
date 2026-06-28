@@ -6,6 +6,7 @@
 from PyQt6.QtWidgets import QWidget, QHBoxLayout, QVBoxLayout, QLabel, QPushButton
 from PyQt6.QtCore import Qt, pyqtSignal
 from PyQt6.QtGui import QPixmap, QFont, QColor
+import os
 
 
 class MediaWidget(QWidget):
@@ -172,5 +173,3 @@ class MediaWidget(QWidget):
         self.play_btn.setText('▶')
         self.album_art.setText('🎵')
         self.progress_label.setText('')
-
-import os

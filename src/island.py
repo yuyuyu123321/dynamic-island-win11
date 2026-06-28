@@ -11,7 +11,7 @@ from PyQt6.QtWidgets import (
     QPushButton, QSlider, QSystemTrayIcon, QMenu
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QSize, QPoint
-from PyQt6.QtGui import QColor, QIcon, QAction, QPainter, QBrush, QPainterPath
+from PyQt6.QtGui import QColor, QIcon, QAction, QPainter, QBrush
 
 from animations import IslandAnimator
 from widgets.media_widget import MediaWidget
@@ -211,27 +211,15 @@ class DynamicIsland(QWidget):
         self.system_monitor.start_monitoring()
         
     def paintEvent(self, event):
-        """绘制事件 - 绘制圆角背景和阴影"""
+        """绘制事件 - 绘制圆角背景"""
         painter = QPainter(self)
         painter.setRenderHint(QPainter.RenderHint.Antialiasing)
-        
-        # 绘制阴影（如果启用）
-        if self.glow_effect:
-            shadow_rect = self.rect().adjusted(3, 3, -3, -3)
-            shadow_path = QPainterPath()
-            shadow_path.addRoundedRect(shadow_rect, self.border_radius, self.border_radius)
-            painter.setPen(Qt.PenStyle.NoPen)
-            painter.setBrush(QBrush(QColor(0, 0, 0, 60)))
-            painter.drawPath(shadow_path)
-        
-        # 绘制背景
-        bg_path = QPainterPath()
-        bg_path.addRoundedRect(self.rect(), self.border_radius, self.border_radius)
         painter.setPen(Qt.PenStyle.NoPen)
+        
         bg_color = QColor(0, 0, 0)
         bg_color.setAlpha(self.bg_opacity)
         painter.setBrush(QBrush(bg_color))
-        painter.drawPath(bg_path)
+        painter.drawRoundedRect(self.rect(), self.border_radius, self.border_radius)
         
         painter.end()
         
