@@ -44,24 +44,24 @@ class DynamicIsland(QWidget):
         
         # 尺寸配置
         self.collapsed_size = QSize(
-            self.island_config.get('width_collapsed', 100),
-            self.island_config.get('height_collapsed', 32)
+            self.island_config.get('width_collapsed', 170),
+            self.island_config.get('height_collapsed', 36)
         )
         self.expanded_size = QSize(
-            self.island_config.get('width_expanded', 340),
-            self.island_config.get('height_expanded', 70)
+            self.island_config.get('width_expanded', 400),
+            self.island_config.get('height_expanded', 75)
         )
         self.media_size = QSize(
-            self.island_config.get('width_media', 380),
-            self.island_config.get('height_media', 110)
+            self.island_config.get('width_media', 420),
+            self.island_config.get('height_media', 115)
         )
         self.volume_size = QSize(
-            self.island_config.get('width_volume', 280),
-            self.island_config.get('height_volume', 70)
+            self.island_config.get('width_volume', 320),
+            self.island_config.get('height_volume', 75)
         )
         self.notification_size = QSize(
-            self.island_config.get('width_notification', 340),
-            self.island_config.get('height_notification', 90)
+            self.island_config.get('width_notification', 400),
+            self.island_config.get('height_notification', 100)
         )
         
         self.animation_duration = self.island_config.get('animation_duration', 200)
