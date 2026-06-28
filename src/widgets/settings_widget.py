@@ -7,10 +7,9 @@ import json
 import os
 from PyQt6.QtWidgets import (
     QWidget, QVBoxLayout, QHBoxLayout, QLabel, QSlider, QSpinBox,
-    QPushButton, QGroupBox, QDialog, QApplication
+    QPushButton, QGroupBox, QDialog
 )
 from PyQt6.QtCore import Qt, pyqtSignal
-from PyQt6.QtGui import QFont
 
 
 class SettingsDialog(QDialog):
@@ -18,12 +17,12 @@ class SettingsDialog(QDialog):
     
     settings_changed = pyqtSignal(dict)
     
-    def __init__(self, config, parent=None):
+    def __init__(self, config, config_path, parent=None):
         super().__init__(parent)
-        self.config = config or {}
-        self.island_config = self.config.get('island', {})
+        self.config = config
+        self.config_path = config_path
         self.setWindowTitle('灵动岛设置')
-        self.setFixedSize(420, 540)
+        self.setFixedSize(440, 560)
         self.setStyleSheet('''
             QDialog {
                 background-color: #1e1e1e;
@@ -208,7 +207,6 @@ class SettingsDialog(QDialog):
         spinbox.setFixedWidth(60)
         row.addWidget(spinbox)
         
-        # 同步滑块和数值框
         slider.valueChanged.connect(spinbox.setValue)
         spinbox.valueChanged.connect(slider.setValue)
         
@@ -217,20 +215,31 @@ class SettingsDialog(QDialog):
         
     def load_values(self):
         """加载当前配置值"""
+        island_config = self.config.get('island', {})
+        
         # 宽度
         for key, widgets in self.width_sliders.items():
-            value = self.island_config.get(key, widgets['slider'].minimum())
+            value = island_config.get(key, widgets['slider'].minimum())
+            widgets['slider'].blockSignals(True)
             widgets['slider'].setValue(value)
+            widgets['spinbox'].setValue(value)
+            widgets['slider'].blockSignals(False)
             
         # 高度
         for key, widgets in self.height_sliders.items():
-            value = self.island_config.get(key, widgets['slider'].minimum())
+            value = island_config.get(key, widgets['slider'].minimum())
+            widgets['slider'].blockSignals(True)
             widgets['slider'].setValue(value)
+            widgets['spinbox'].setValue(value)
+            widgets['slider'].blockSignals(False)
             
         # 动画与外观
         for key, widgets in self.anim_sliders.items():
-            value = self.island_config.get(key, widgets['slider'].minimum())
+            value = island_config.get(key, widgets['slider'].minimum())
+            widgets['slider'].blockSignals(True)
             widgets['slider'].setValue(value)
+            widgets['spinbox'].setValue(value)
+            widgets['slider'].blockSignals(False)
             
     def get_settings(self):
         """获取当前设置值"""
@@ -248,27 +257,27 @@ class SettingsDialog(QDialog):
         return settings
         
     def on_preview(self):
-        """实时预览"""
+        """实时预览 - 只发送信号，不保存文件"""
         settings = self.get_settings()
         self.settings_changed.emit(settings)
         
     def on_save(self):
-        """保存并应用"""
+        """保存并应用 - 更新配置并写入文件"""
         settings = self.get_settings()
         
-        # 更新配置
-        self.config['island'] = settings
+        # 更新配置字典（使用 update，不替换，保持引用一致）
+        self.config.setdefault('island', {})
+        self.config['island'].update(settings)
         
-        # 保存到文件 - 项目根目录的 config.json
-        # settings_widget.py 在 src/widgets/，需要回到根目录
-        root_dir = os.path.dirname(os.path.dirname(os.path.dirname(__file__)))
-        config_path = os.path.join(root_dir, 'config.json')
-        try:
-            with open(config_path, 'w', encoding='utf-8') as f:
-                json.dump(self.config, f, indent=2, ensure_ascii=False)
-        except Exception as e:
-            print(f'保存配置失败: {e}')
-            
+        # 保存到文件
+        if self.config_path:
+            try:
+                with open(self.config_path, 'w', encoding='utf-8') as f:
+                    json.dump(self.config, f, indent=2, ensure_ascii=False)
+            except Exception as e:
+                print(f'保存配置失败: {e}')
+        
+        # 发送信号让 island 应用
         self.settings_changed.emit(settings)
         self.accept()
         
@@ -298,3 +307,6 @@ class SettingsDialog(QDialog):
                 self.height_sliders[key]['slider'].setValue(value)
             elif key in self.anim_sliders:
                 self.anim_sliders[key]['slider'].setValue(value)
+        
+        # 重置后自动预览
+        self.on_preview()

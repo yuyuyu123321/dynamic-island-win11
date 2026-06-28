@@ -6,9 +6,9 @@ Dynamic Island 主窗口 - 核心 UI 逻辑
 import sys
 import os
 import json
+import time
 from PyQt6.QtWidgets import (
-    QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-    QPushButton, QSlider, QSystemTrayIcon, QMenu
+    QApplication, QWidget, QHBoxLayout, QSystemTrayIcon, QMenu
 )
 from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QSize, QPoint
 from PyQt6.QtGui import QColor, QIcon, QAction, QPainter, QBrush
@@ -28,23 +28,49 @@ class DynamicIsland(QWidget):
     # 信号定义
     state_changed = pyqtSignal(str)  # collapsed, expanded, media, volume, notification
     
-    def __init__(self, config=None):
+    def __init__(self, config=None, config_path=None):
         super().__init__()
         self.config = config or {}
-        self.island_config = self.config.get('island', {})
-        self.features = self.config.get('features', {})
+        self.config_path = config_path
+        
+        # 确保 island 配置存在
+        if 'island' not in self.config:
+            self.config['island'] = {}
+        if 'features' not in self.config:
+            self.config['features'] = {}
+        
+        self.island_config = self.config['island']
+        self.features = self.config['features']
         
         # 当前状态
         self.current_state = 'collapsed'
         self.previous_state = 'collapsed'
         self.is_dragging = False
         self.drag_position = QPoint()
-        self.is_media_playing = False  # 媒体是否正在播放
+        self.is_media_playing = False
+        self.media_suppress_until_time = 0  # 媒体抑制截止时间
         self.auto_hide_timer = QTimer()
         self.auto_hide_timer.timeout.connect(self._on_auto_hide_timeout)
         self.auto_hide_timer.setSingleShot(True)
         
-        # 尺寸配置
+        # 读取尺寸配置（从 self.island_config，确保引用一致）
+        self._reload_sizes()
+        
+        self.animation_duration = self.island_config.get('animation_duration', 200)
+        self.auto_hide_delay = self.island_config.get('auto_hide_delay', 3500)
+        self.bg_opacity = self.island_config.get('background_opacity', 210)
+        self.border_radius = self.island_config.get('border_radius', 18)
+        self.glow_effect = self.island_config.get('glow_effect', True)
+        
+        self.init_ui()
+        self.init_widgets()
+        self.init_system_tray()
+        self.init_animator()
+        self.init_position()
+        self.init_system_monitor()
+        
+    def _reload_sizes(self):
+        """从配置重新加载所有尺寸"""
         self.collapsed_size = QSize(
             self.island_config.get('width_collapsed', 170),
             self.island_config.get('height_collapsed', 36)
@@ -66,22 +92,8 @@ class DynamicIsland(QWidget):
             self.island_config.get('height_notification', 100)
         )
         
-        self.animation_duration = self.island_config.get('animation_duration', 200)
-        self.auto_hide_delay = self.island_config.get('auto_hide_delay', 3500)
-        self.bg_opacity = self.island_config.get('background_opacity', 210)
-        self.border_radius = self.island_config.get('border_radius', 18)
-        self.glow_effect = self.island_config.get('glow_effect', True)
-        
-        self.init_ui()
-        self.init_widgets()
-        self.init_system_tray()
-        self.init_animator()
-        self.init_position()
-        self.init_system_monitor()
-        
     def init_ui(self):
         """初始化 UI"""
-        # 窗口属性设置
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.WindowStaysOnTopHint |
@@ -90,22 +102,18 @@ class DynamicIsland(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         
-        # 设置固定大小（初始为收缩状态）
         self.setFixedSize(self.collapsed_size)
         
-        # 主布局 - 直接放在窗口上，内边距就是背景圆角的内边距
         self.main_layout = QHBoxLayout(self)
         self.main_layout.setContentsMargins(12, 6, 12, 6)
         self.main_layout.setSpacing(0)
         
-        # 鼠标跟踪
         self.setMouseTracking(True)
         
     def init_widgets(self):
         """初始化各个功能组件"""
         self.stacked_widgets = {}
         
-        # 内容容器 - 透明背景，不设置样式表背景
         self.content_widget = QWidget(self)
         self.content_widget.setStyleSheet('background: transparent;')
         
@@ -115,7 +123,7 @@ class DynamicIsland(QWidget):
         
         self.main_layout.addWidget(self.content_widget)
         
-        # 时钟组件（默认显示）
+        # 时钟组件
         if self.features.get('clock', True):
             self.clock_widget = ClockWidget(self.content_widget)
             self.stacked_widgets['clock'] = self.clock_widget
@@ -147,18 +155,14 @@ class DynamicIsland(QWidget):
             self.content_layout.addWidget(self.notification_widget)
             self.notification_widget.hide()
         
-        # 默认显示时钟
         self.active_widget = 'clock'
         
     def init_system_tray(self):
         """初始化系统托盘"""
         self.tray_icon = QSystemTrayIcon(self)
         self.tray_icon.setToolTip('Windows 11 Dynamic Island')
-        
-        # 创建简单图标（使用系统图标）
         self.tray_icon.setIcon(QIcon.fromTheme('applications-system'))
         
-        # 托盘菜单
         tray_menu = QMenu()
         
         show_action = QAction('显示', self)
@@ -240,7 +244,6 @@ class DynamicIsland(QWidget):
         self.previous_state = self.current_state
         self.current_state = state
         
-        # 获取目标尺寸
         if state == 'collapsed':
             target_size = self.collapsed_size
         elif state == 'expanded':
@@ -254,30 +257,17 @@ class DynamicIsland(QWidget):
         else:
             target_size = self.expanded_size
         
-        # 切换显示的组件
         if widget_name and widget_name in self.stacked_widgets:
             self.switch_widget(widget_name)
         
-        # 执行动画
         self.animator.animate_size(target_size)
         self.state_changed.emit(state)
         
-        # 设置自动隐藏定时器
         if state != 'collapsed' and state != 'media':
             self.auto_hide_timer.start(self.auto_hide_delay)
         elif state == 'media':
-            # 媒体播放时重置 auto_hide，但使用更长的延迟
             self.auto_hide_timer.start(self.auto_hide_delay * 2)
             
-    def _on_auto_hide_timeout(self):
-        """自动隐藏定时器到期"""
-        # 如果媒体正在播放，不要收缩，而是保持 media 状态
-        if self.is_media_playing:
-            # 媒体仍在播放，重新展开到 media（重置定时器）
-            self.expand_to('media', 'media')
-        else:
-            self.collapse()
-
     def collapse(self):
         """收缩回默认状态"""
         self.expand_to('collapsed', 'clock')
@@ -287,11 +277,9 @@ class DynamicIsland(QWidget):
         if self.active_widget == widget_name:
             return
             
-        # 隐藏当前组件
         if self.active_widget in self.stacked_widgets:
             self.stacked_widgets[self.active_widget].hide()
         
-        # 显示新组件
         if widget_name in self.stacked_widgets:
             self.stacked_widgets[widget_name].show()
             self.active_widget = widget_name
@@ -299,36 +287,29 @@ class DynamicIsland(QWidget):
     # === 事件处理 ===
     
     def mousePressEvent(self, event):
-        """鼠标按下事件"""
         if event.button() == Qt.MouseButton.LeftButton:
             self.is_dragging = True
             self.drag_position = event.globalPosition().toPoint() - self.frameGeometry().topLeft()
             event.accept()
             
     def mouseMoveEvent(self, event):
-        """鼠标移动事件"""
         if self.is_dragging and (event.buttons() & Qt.MouseButton.LeftButton):
             new_pos = event.globalPosition().toPoint() - self.drag_position
             self.move(new_pos)
             event.accept()
             
     def mouseReleaseEvent(self, event):
-        """鼠标释放事件"""
         if event.button() == Qt.MouseButton.LeftButton:
             self.is_dragging = False
             self.snap_to_edge()
             event.accept()
             
     def enterEvent(self, event):
-        """鼠标进入事件"""
-        # 悬停时稍微展开
         if self.current_state == 'collapsed':
             self.expand_to('expanded', 'clock')
         event.accept()
         
     def leaveEvent(self, event):
-        """鼠标离开事件"""
-        # 如果处于展开状态且不在拖拽中，启动自动隐藏
         if self.current_state != 'collapsed' and not self.is_dragging:
             self.auto_hide_timer.start(self.auto_hide_delay)
         event.accept()
@@ -340,7 +321,6 @@ class DynamicIsland(QWidget):
         x = pos.x()
         y = pos.y()
         
-        # 垂直方向吸附到顶部
         if y < screen.height() // 4:
             y = 8
         elif y > screen.height() * 3 // 4:
@@ -348,20 +328,17 @@ class DynamicIsland(QWidget):
         else:
             y = max(8, min(y, screen.height() - self.height() - 8))
         
-        # 水平方向吸附
         if x < screen.width() // 4:
             x = 8
         elif x > screen.width() * 3 // 4:
             x = screen.width() - self.width() - 8
         else:
-            # 吸附到中心
             x = (screen.width() - self.width()) // 2
             
         self.animator.animate_position(QPoint(x, y))
         self.original_position = QPoint(x, y)
         
     def on_tray_activated(self, reason):
-        """托盘图标激活"""
         if reason == QSystemTrayIcon.ActivationReason.DoubleClick:
             self.show()
             
@@ -378,100 +355,72 @@ class DynamicIsland(QWidget):
             self.settings_dialog.activateWindow()
             return
             
-        self.settings_dialog = SettingsDialog(self.config, self)
+        self.settings_dialog = SettingsDialog(self.config, self.config_path, self)
         self.settings_dialog.settings_changed.connect(self.apply_settings)
         self.settings_dialog.show()
         
     def apply_settings(self, settings):
-        """应用设置变更 - 直接替换整个配置字典，避免引用问题"""
-        # 完全替换配置字典
-        self.config['island'] = settings
-        self.island_config = settings
+        """应用设置变更 - 使用 update 确保引用一致"""
+        # 更新配置字典（不替换，保持引用一致）
+        self.island_config.update(settings)
         
-        # 重新计算所有尺寸
-        self.collapsed_size = QSize(
-            settings.get('width_collapsed', 170),
-            settings.get('height_collapsed', 36)
-        )
-        self.expanded_size = QSize(
-            settings.get('width_expanded', 400),
-            settings.get('height_expanded', 75)
-        )
-        self.media_size = QSize(
-            settings.get('width_media', 420),
-            settings.get('height_media', 115)
-        )
-        self.volume_size = QSize(
-            settings.get('width_volume', 320),
-            settings.get('height_volume', 75)
-        )
-        self.notification_size = QSize(
-            settings.get('width_notification', 400),
-            settings.get('height_notification', 100)
-        )
+        # 重新加载所有尺寸
+        self._reload_sizes()
         
         # 更新动画和外观参数
-        self.animation_duration = settings.get('animation_duration', 200)
-        self.auto_hide_delay = settings.get('auto_hide_delay', 3500)
-        self.bg_opacity = settings.get('background_opacity', 210)
-        self.border_radius = settings.get('border_radius', 18)
+        self.animation_duration = self.island_config.get('animation_duration', 200)
+        self.auto_hide_delay = self.island_config.get('auto_hide_delay', 3500)
+        self.bg_opacity = self.island_config.get('background_opacity', 210)
+        self.border_radius = self.island_config.get('border_radius', 18)
         
         # 更新动画器
-        self.animator.duration = self.animation_duration
         self.animator.size_animation.setDuration(self.animation_duration)
         self.animator.pos_animation.setDuration(self.animation_duration)
         
         # 更新定时器
         self.auto_hide_timer.setInterval(self.auto_hide_delay)
         
+        # 停止任何正在运行的动画
+        self.animator.size_animation.stop()
+        self.animator.pos_animation.stop()
+        
         # 获取当前状态对应的目标尺寸
-        state_size_map = {
+        target_size = {
             'collapsed': self.collapsed_size,
             'expanded': self.expanded_size,
             'media': self.media_size,
             'volume': self.volume_size,
             'notification': self.notification_size,
-        }
-        target_size = state_size_map.get(self.current_state, self.collapsed_size)
+        }.get(self.current_state, self.collapsed_size)
         
-        # 强制调整大小：先取消固定大小限制，再设置几何，再恢复固定大小
-        self.setMinimumSize(0, 0)
-        self.setMaximumSize(16777215, 16777215)
+        # 强制调整大小：先取消限制，再 resize，再设置固定大小
+        self.setMinimumSize(QSize(0, 0))
+        self.setMaximumSize(QSize(16777215, 16777215))
+        self.resize(target_size)
+        self.setFixedSize(target_size)
         
-        # 计算居中位置
+        # 重新居中
         screen = QApplication.primaryScreen().geometry()
         x = (screen.width() - target_size.width()) // 2
         y = max(8, self.pos().y())
-        
-        # 使用 setGeometry 同时设置位置和大小
-        self.setGeometry(x, y, target_size.width(), target_size.height())
-        
-        # 重新设置固定大小
-        self.setFixedSize(target_size)
+        self.move(x, y)
         
         # 重绘
         self.update()
         
-        # 保存新配置到文件（确保重启后生效）
-        try:
-            import json
-            config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.json')
-            with open(config_path, 'w', encoding='utf-8') as f:
-                json.dump(self.config, f, indent=2, ensure_ascii=False)
-        except Exception as e:
-            print(f'配置保存失败: {e}')
+        # 保存到文件
+        if self.config_path:
+            try:
+                with open(self.config_path, 'w', encoding='utf-8') as f:
+                    json.dump(self.config, f, indent=2, ensure_ascii=False)
+            except Exception as e:
+                print(f'配置保存失败: {e}')
         
-        # 发送反馈通知
-        self.show_notification('设置已保存', '灵动岛尺寸和样式已更新', '✅', 2000)
-            
     # === 系统事件回调 ===
                 
     def on_media_close(self):
         """用户点击关闭媒体界面"""
-        # 收缩回时钟
         self.collapse()
-        # 记录抑制时间，30秒内不再自动展开媒体
-        import time
         self.media_suppress_until_time = time.time() + 30
 
     def on_media_play_pause(self):
@@ -498,9 +447,8 @@ class DynamicIsland(QWidget):
             
     def on_system_media_playing(self, info):
         """系统媒体播放"""
-        # 检查是否在抑制期（用户手动关闭后30秒内不自动展开）
-        import time
-        if hasattr(self, 'media_suppress_until_time') and time.time() < self.media_suppress_until_time:
+        # 检查是否在抑制期
+        if time.time() < self.media_suppress_until_time:
             return
         self.is_media_playing = True
         if self.media_widget:
@@ -522,3 +470,10 @@ class DynamicIsland(QWidget):
         """显示通知"""
         self.on_system_notification(title, message, icon)
         self.auto_hide_timer.start(duration)
+        
+    def _on_auto_hide_timeout(self):
+        """自动隐藏定时器到期"""
+        if self.is_media_playing:
+            self.expand_to('media', 'media')
+        else:
+            self.collapse()

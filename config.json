@@ -1,18 +1,18 @@
 {
   "island": {
-    "width_collapsed": 137,
-    "width_expanded": 352,
+    "width_collapsed": 170,
+    "width_expanded": 400,
     "width_media": 420,
     "width_volume": 320,
     "width_notification": 400,
-    "height_collapsed": 38,
-    "height_expanded": 64,
+    "height_collapsed": 60,
+    "height_expanded": 120,
     "height_media": 115,
     "height_volume": 75,
     "height_notification": 100,
     "animation_duration": 200,
     "auto_hide_delay": 3500,
-    "background_opacity": 126,
+    "background_opacity": 210,
     "border_radius": 18
   },
   "features": {

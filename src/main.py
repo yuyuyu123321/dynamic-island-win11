@@ -16,12 +16,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from island import DynamicIsland
 
 
-def load_config():
+def load_config(config_path):
     """加载配置文件"""
-    config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.json')
     if os.path.exists(config_path):
-        with open(config_path, 'r', encoding='utf-8') as f:
-            return json.load(f)
+        try:
+            with open(config_path, 'r', encoding='utf-8') as f:
+                return json.load(f)
+        except Exception:
+            pass
     return {}
 
 
@@ -51,11 +53,15 @@ def main():
             app.setFont(QFont(font_name, 10))
             break
 
-    # 加载配置
-    config = load_config()
+    # 确定项目根目录和配置文件路径（使用绝对路径）
+    project_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    config_path = os.path.join(project_root, 'config.json')
 
-    # 创建灵动岛主窗口
-    island = DynamicIsland(config)
+    # 加载配置
+    config = load_config(config_path)
+
+    # 创建灵动岛主窗口，传递配置文件路径
+    island = DynamicIsland(config, config_path)
     island.show()
 
     sys.exit(app.exec())
