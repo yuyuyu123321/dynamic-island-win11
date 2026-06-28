@@ -117,9 +117,19 @@ class SystemMonitor(QObject):
                     media_props = await session.try_get_media_properties_async()
                     playback_info = session.get_playback_info()
                     
-                    title = media_props.title if media_props and media_props.title else '未知歌曲'
-                    artist = media_props.artist if media_props and media_props.artist else '未知艺人'
+                    title = media_props.title if media_props and media_props.title else ''
+                    artist = media_props.artist if media_props and media_props.artist else ''
                     album = media_props.album_title if media_props and media_props.album_title else ''
+                    
+                    # 获取进度信息
+                    position = 0
+                    duration = 0
+                    try:
+                        timeline = session.get_timeline_properties()
+                        position = timeline.position.total_seconds() if timeline.position else 0
+                        duration = timeline.end_time.total_seconds() if timeline.end_time else 0
+                    except Exception:
+                        pass
                     
                     # 播放状态: 4 = Playing, 5 = Paused
                     playback_status = playback_info.playback_status
@@ -130,7 +140,9 @@ class SystemMonitor(QObject):
                         'title': title,
                         'artist': artist,
                         'album': album,
-                        'is_playing': is_playing
+                        'is_playing': is_playing,
+                        'position': position,
+                        'duration': duration
                     }
                     
                     # 检测状态变化：只有真正变化才发送信号

@@ -1,22 +1,19 @@
 {
   "island": {
-    "width_collapsed": 170,
-    "height_collapsed": 36,
+    "width_collapsed": 300,
     "width_expanded": 400,
-    "height_expanded": 75,
     "width_media": 420,
-    "height_media": 115,
     "width_volume": 320,
-    "height_volume": 75,
     "width_notification": 400,
+    "height_collapsed": 36,
+    "height_expanded": 75,
+    "height_media": 115,
+    "height_volume": 75,
     "height_notification": 100,
-    "position": "top-center",
     "animation_duration": 200,
     "auto_hide_delay": 3500,
-    "background_color": "#000000",
     "background_opacity": 210,
-    "border_radius": 18,
-    "glow_effect": true
+    "border_radius": 18
   },
   "features": {
     "media": true,

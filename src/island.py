@@ -127,6 +127,7 @@ class DynamicIsland(QWidget):
             self.media_widget.play_pause_clicked.connect(self.on_media_play_pause)
             self.media_widget.next_clicked.connect(self.on_media_next)
             self.media_widget.prev_clicked.connect(self.on_media_prev)
+            self.media_widget.close_clicked.connect(self.on_media_close)
             self.stacked_widgets['media'] = self.media_widget
             self.content_layout.addWidget(self.media_widget)
             self.media_widget.hide()
@@ -383,8 +384,10 @@ class DynamicIsland(QWidget):
         
     def apply_settings(self, settings):
         """应用设置变更"""
-        # 更新本地配置
+        # 更新本地配置 - 注意：self.island_config 引用的是 self.config['island'] 的字典对象
+        # 但在 settings_widget 的 on_save 中可能替换了整个字典，所以需要同步更新引用
         self.island_config.update(settings)
+        self.config['island'] = self.island_config  # 确保 self.config 引用正确
         
         # 重新计算尺寸
         self.collapsed_size = QSize(
@@ -439,6 +442,14 @@ class DynamicIsland(QWidget):
             
     # === 系统事件回调 ===
                 
+    def on_media_close(self):
+        """用户点击关闭媒体界面"""
+        # 收缩回时钟
+        self.collapse()
+        # 记录抑制时间，30秒内不再自动展开媒体
+        import time
+        self.media_suppress_until_time = time.time() + 30
+
     def on_media_play_pause(self):
         """播放/暂停"""
         self.system_monitor.media_play_pause()
@@ -463,6 +474,10 @@ class DynamicIsland(QWidget):
             
     def on_system_media_playing(self, info):
         """系统媒体播放"""
+        # 检查是否在抑制期（用户手动关闭后30秒内不自动展开）
+        import time
+        if hasattr(self, 'media_suppress_until_time') and time.time() < self.media_suppress_until_time:
+            return
         self.is_media_playing = True
         if self.media_widget:
             self.media_widget.update_media_info(info)
