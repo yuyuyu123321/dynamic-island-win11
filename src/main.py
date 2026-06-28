@@ -37,14 +37,14 @@ def main():
     app.setQuitOnLastWindowClosed(False)
 
     # 设置全局字体
-    font_db = QFontDatabase()
-    available_fonts = font_db.families()
+    available_fonts = QFontDatabase.families()
     
     # 优先使用系统字体
     preferred_fonts = ['Segoe UI', 'Microsoft YaHei', 'PingFang SC', 'Noto Sans SC']
     for font_name in preferred_fonts:
         if font_name in available_fonts:
-            app.setFont(QFontDatabase.font(font_name, '', 10))
+            from PyQt6.QtGui import QFont
+            app.setFont(QFont(font_name, 10))
             break
 
     # 加载配置
