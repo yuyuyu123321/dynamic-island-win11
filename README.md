@@ -57,11 +57,11 @@ python -m src.main
 
 | 参数 | 说明 | 默认值 |
 |------|------|--------|
-| `width_collapsed` | 收缩状态宽度 | 120 |
-| `height_collapsed` | 收缩状态高度 | 40 |
-| `width_expanded` | 展开状态宽度 | 360 |
-| `animation_duration` | 动画时长(ms) | 300 |
-| `auto_hide_delay` | 自动隐藏延迟(ms) | 3000 |
+| `width_collapsed` | 收缩状态宽度 | 100 |
+| `height_collapsed` | 收缩状态高度 | 32 |
+| `width_expanded` | 展开状态宽度 | 340 |
+| `animation_duration` | 动画时长(ms) | 200 |
+| `auto_hide_delay` | 自动隐藏延迟(ms) | 3500 |
 | `position` | 初始位置 | top-center |
 
 ## 项目结构

@@ -44,30 +44,30 @@ class DynamicIsland(QWidget):
         
         # 尺寸配置
         self.collapsed_size = QSize(
-            self.island_config.get('width_collapsed', 120),
-            self.island_config.get('height_collapsed', 40)
+            self.island_config.get('width_collapsed', 100),
+            self.island_config.get('height_collapsed', 32)
         )
         self.expanded_size = QSize(
-            self.island_config.get('width_expanded', 360),
-            self.island_config.get('height_expanded', 80)
+            self.island_config.get('width_expanded', 340),
+            self.island_config.get('height_expanded', 70)
         )
         self.media_size = QSize(
-            self.island_config.get('width_media', 400),
-            self.island_config.get('height_media', 120)
+            self.island_config.get('width_media', 380),
+            self.island_config.get('height_media', 110)
         )
         self.volume_size = QSize(
-            self.island_config.get('width_volume', 320),
-            self.island_config.get('height_volume', 80)
+            self.island_config.get('width_volume', 280),
+            self.island_config.get('height_volume', 70)
         )
         self.notification_size = QSize(
-            self.island_config.get('width_notification', 380),
-            self.island_config.get('height_notification', 100)
+            self.island_config.get('width_notification', 340),
+            self.island_config.get('height_notification', 90)
         )
         
-        self.animation_duration = self.island_config.get('animation_duration', 300)
-        self.auto_hide_delay = self.island_config.get('auto_hide_delay', 3000)
-        self.bg_opacity = self.island_config.get('background_opacity', 220)
-        self.border_radius = self.island_config.get('border_radius', 20)
+        self.animation_duration = self.island_config.get('animation_duration', 200)
+        self.auto_hide_delay = self.island_config.get('auto_hide_delay', 3500)
+        self.bg_opacity = self.island_config.get('background_opacity', 210)
+        self.border_radius = self.island_config.get('border_radius', 18)
         self.glow_effect = self.island_config.get('glow_effect', True)
         
         self.init_ui()

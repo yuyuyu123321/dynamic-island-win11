@@ -22,6 +22,10 @@ if not exist .venv (
 :: 激活虚拟环境
 call .venv\Scripts\activate
 
+:: 升级 pip（静默，不显示警告）
+echo [信息] 升级 pip...
+python -m pip install --upgrade pip -q 2>nul
+
 :: 安装依赖
 echo [信息] 检查依赖...
 pip install -q PyQt6 pycaw comtypes psutil pywin32 pystray
