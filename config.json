@@ -1,0 +1,28 @@
+{
+  "island": {
+    "width_collapsed": 120,
+    "height_collapsed": 40,
+    "width_expanded": 360,
+    "height_expanded": 80,
+    "width_media": 400,
+    "height_media": 120,
+    "width_volume": 320,
+    "height_volume": 80,
+    "width_notification": 380,
+    "height_notification": 100,
+    "position": "top-center",
+    "animation_duration": 300,
+    "auto_hide_delay": 3000,
+    "background_color": "#000000",
+    "background_opacity": 220,
+    "border_radius": 20,
+    "glow_effect": true
+  },
+  "features": {
+    "media": true,
+    "volume": true,
+    "notifications": true,
+    "clock": true,
+    "system_status": true
+  }
+}
