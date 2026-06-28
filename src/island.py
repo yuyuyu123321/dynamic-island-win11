@@ -8,10 +8,10 @@ import os
 import json
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
-    QPushButton, QSlider, QGraphicsDropShadowEffect, QSystemTrayIcon, QMenu
+    QPushButton, QSlider, QSystemTrayIcon, QMenu
 )
-from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QPropertyAnimation, QEasingCurve, QRect, QSize, QPoint
-from PyQt6.QtGui import QColor, QIcon, QAction
+from PyQt6.QtCore import Qt, QTimer, pyqtSignal, QSize, QPoint
+from PyQt6.QtGui import QColor, QIcon, QAction, QPainter, QBrush, QPainterPath
 
 from animations import IslandAnimator
 from widgets.media_widget import MediaWidget
@@ -87,82 +87,61 @@ class DynamicIsland(QWidget):
             Qt.WindowType.WindowDoesNotAcceptFocus
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.setAttribute(Qt.WidgetAttribute.WA_TransparentForMouseEvents, False)
         
         # 设置固定大小（初始为收缩状态）
         self.setFixedSize(self.collapsed_size)
         
-        # 主布局
-        self.main_layout = QVBoxLayout(self)
-        self.main_layout.setContentsMargins(0, 0, 0, 0)
+        # 主布局 - 直接放在窗口上，内边距就是背景圆角的内边距
+        self.main_layout = QHBoxLayout(self)
+        self.main_layout.setContentsMargins(12, 6, 12, 6)
         self.main_layout.setSpacing(0)
-        
-        # 内容容器
-        self.content_container = QWidget(self)
-        self.content_container.setObjectName('contentContainer')
-        self.content_container.setStyleSheet(f'''
-            QWidget#contentContainer {{
-                background-color: rgba(0, 0, 0, {self.bg_opacity / 255 * 0.95});
-                border-radius: {self.border_radius}px;
-            }}
-        ''')
-        
-        container_layout = QVBoxLayout(self.content_container)
-        container_layout.setContentsMargins(12, 6, 12, 6)
-        container_layout.setSpacing(0)
-        
-        self.main_layout.addWidget(self.content_container)
-        
-        # 发光效果
-        if self.glow_effect:
-            shadow = QGraphicsDropShadowEffect(self)
-            shadow.setBlurRadius(20)
-            shadow.setColor(QColor(0, 0, 0, 160))
-            shadow.setOffset(0, 4)
-            self.content_container.setGraphicsEffect(shadow)
         
         # 鼠标跟踪
         self.setMouseTracking(True)
-        self.content_container.setMouseTracking(True)
         
     def init_widgets(self):
         """初始化各个功能组件"""
-        # 堆叠组件（只显示当前活跃的）
         self.stacked_widgets = {}
+        
+        # 内容容器 - 透明背景，不设置样式表背景
+        self.content_widget = QWidget(self)
+        self.content_widget.setStyleSheet('background: transparent;')
+        
+        self.content_layout = QHBoxLayout(self.content_widget)
+        self.content_layout.setContentsMargins(0, 0, 0, 0)
+        self.content_layout.setSpacing(0)
+        
+        self.main_layout.addWidget(self.content_widget)
         
         # 时钟组件（默认显示）
         if self.features.get('clock', True):
-            self.clock_widget = ClockWidget(self)
+            self.clock_widget = ClockWidget(self.content_widget)
             self.stacked_widgets['clock'] = self.clock_widget
-            container_layout = self.content_container.layout()
-            container_layout.addWidget(self.clock_widget)
+            self.content_layout.addWidget(self.clock_widget)
         
         # 媒体组件
         if self.features.get('media', True):
-            self.media_widget = MediaWidget(self)
+            self.media_widget = MediaWidget(self.content_widget)
             self.media_widget.play_pause_clicked.connect(self.on_media_play_pause)
             self.media_widget.next_clicked.connect(self.on_media_next)
             self.media_widget.prev_clicked.connect(self.on_media_prev)
             self.stacked_widgets['media'] = self.media_widget
-            container_layout = self.content_container.layout()
-            container_layout.addWidget(self.media_widget)
+            self.content_layout.addWidget(self.media_widget)
             self.media_widget.hide()
         
         # 音量组件
         if self.features.get('volume', True):
-            self.volume_widget = VolumeWidget(self)
+            self.volume_widget = VolumeWidget(self.content_widget)
             self.volume_widget.volume_changed.connect(self.on_volume_changed)
             self.stacked_widgets['volume'] = self.volume_widget
-            container_layout = self.content_container.layout()
-            container_layout.addWidget(self.volume_widget)
+            self.content_layout.addWidget(self.volume_widget)
             self.volume_widget.hide()
         
         # 通知组件
         if self.features.get('notifications', True):
-            self.notification_widget = NotificationWidget(self)
+            self.notification_widget = NotificationWidget(self.content_widget)
             self.stacked_widgets['notification'] = self.notification_widget
-            container_layout = self.content_container.layout()
-            container_layout.addWidget(self.notification_widget)
+            self.content_layout.addWidget(self.notification_widget)
             self.notification_widget.hide()
         
         # 默认显示时钟
@@ -230,6 +209,31 @@ class DynamicIsland(QWidget):
         self.system_monitor.media_paused.connect(self.on_system_media_paused)
         self.system_monitor.notification_received.connect(self.on_system_notification)
         self.system_monitor.start_monitoring()
+        
+    def paintEvent(self, event):
+        """绘制事件 - 绘制圆角背景和阴影"""
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.RenderHint.Antialiasing)
+        
+        # 绘制阴影（如果启用）
+        if self.glow_effect:
+            shadow_rect = self.rect().adjusted(3, 3, -3, -3)
+            shadow_path = QPainterPath()
+            shadow_path.addRoundedRect(shadow_rect, self.border_radius, self.border_radius)
+            painter.setPen(Qt.PenStyle.NoPen)
+            painter.setBrush(QBrush(QColor(0, 0, 0, 60)))
+            painter.drawPath(shadow_path)
+        
+        # 绘制背景
+        bg_path = QPainterPath()
+        bg_path.addRoundedRect(self.rect(), self.border_radius, self.border_radius)
+        painter.setPen(Qt.PenStyle.NoPen)
+        bg_color = QColor(0, 0, 0)
+        bg_color.setAlpha(self.bg_opacity)
+        painter.setBrush(QBrush(bg_color))
+        painter.drawPath(bg_path)
+        
+        painter.end()
         
     # === 状态切换 ===
     
